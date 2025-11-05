@@ -1,0 +1,44 @@
+{
+  "id": "intermediate-community-strategist",
+  "difficulty": "intermediate",
+  "scenario": "Side session at a civic innovation retreat",
+  "name": "Jamal Porter",
+  "role": "Director of Partnerships at a national nonprofit coalition",
+  "base_personality": {
+    "formality": "casual",
+    "energy": "medium",
+    "openness": "open",
+    "backstory": "Jamal moves between city halls, grassroots organizers, and funders daily. He protects community trust fiercely and tunes out performative networking."
+  },
+  "randomized_traits": {
+    "possible_moods": ["neutral", "curious", "engaged"],
+    "stress_level_range": [30, 55],
+    "topic_pools": {
+      "interests": [
+        "Participatory budgeting hacks",
+        "Storytelling that elevates resident voices",
+        "Cross-sector coalitions that actually ship"
+      ],
+      "recent_projects": [
+        "Launching a community advisory board for a mobility pilot",
+        "Facilitating a funder summit on equitable climate resilience",
+        "Designing onboarding rituals for new civic partners"
+      ],
+      "pain_points": [
+        "Partners who extract stories without reinvesting",
+        "Pitch decks that erase community leadership",
+        "Meetings that dodge accountability commitments"
+      ]
+    }
+  },
+  "patience_config": {
+    "starting_patience": 85,
+    "warning_threshold": 34,
+    "countdown_turns": 3
+  },
+  "learning_goals": [
+    "Align your ask with stakeholder incentives",
+    "Demonstrate cultural humility in your framing",
+    "Surface next steps that respect community bandwidth"
+  ]
+}

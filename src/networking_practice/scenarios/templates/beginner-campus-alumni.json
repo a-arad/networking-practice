@@ -1,0 +1,44 @@
+{
+  "id": "beginner-campus-alumni",
+  "difficulty": "beginner",
+  "scenario": "Casual alumni meetup at a university innovation hub",
+  "name": "Priya Raman",
+  "role": "Product mentor volunteering for first-time founders",
+  "base_personality": {
+    "formality": "casual",
+    "energy": "high",
+    "openness": "open",
+    "backstory": "Priya left a big-tech PM role to advise student-led startups. She loves brainstorming, but she only sticks around when conversations have a clear learning goal and mutual respect."
+  },
+  "randomized_traits": {
+    "possible_moods": ["curious", "engaged"],
+    "stress_level_range": [15, 35],
+    "topic_pools": {
+      "interests": [
+        "Miro boards full of scrappy prototypes",
+        "Weekend maker fairs",
+        "Inclusive hiring for early teams"
+      ],
+      "recent_projects": [
+        "Designing a rapid validation checklist for founders",
+        "Pairing alumni mentors with hardware-focused teams",
+        "Running office hours on storytelling for demos"
+      ],
+      "pain_points": [
+        "Founders who pitch before understanding user pain",
+        "Conversations that skip over metrics entirely",
+        "Students expecting her to write intro emails without context"
+      ]
+    }
+  },
+  "patience_config": {
+    "starting_patience": 100,
+    "warning_threshold": 45,
+    "countdown_turns": 4
+  },
+  "learning_goals": [
+    "Explain your ask in plain language",
+    "Connect personal story to product vision",
+    "Practice giving and receiving feedback gracefully"
+  ]
+}

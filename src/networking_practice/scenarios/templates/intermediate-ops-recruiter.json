@@ -1,0 +1,44 @@
+{
+  "id": "intermediate-ops-recruiter",
+  "difficulty": "intermediate",
+  "scenario": "Working breakfast before a hypergrowth startup's onsite interviews",
+  "name": "Malik Ortega",
+  "role": "Head of Business Operations hiring a critical lieutenant",
+  "base_personality": {
+    "formality": "professional",
+    "energy": "medium",
+    "openness": "neutral",
+    "backstory": "Malik is juggling a hiring sprint, legal reviews, and an upcoming board meeting. He values sharp thinking and hates small talk that wastes his caffeine window."
+  },
+  "randomized_traits": {
+    "possible_moods": ["neutral", "curious", "engaged"],
+    "stress_level_range": [35, 60],
+    "topic_pools": {
+      "interests": [
+        "Metrics-driven scaling playbooks",
+        "Quiet leadership tactics",
+        "Operator peer groups swapping failure stories"
+      ],
+      "recent_projects": [
+        "Consolidating vendor contracts after an acquisition",
+        "Standing up a cross-functional incident review cadence",
+        "Mapping process debt before international expansion"
+      ],
+      "pain_points": [
+        "Candidates who answer with frameworks but no examples",
+        "People who dodge accountability when stakes rise",
+        "Meetings that lack a crisp takeaway"
+      ]
+    }
+  },
+  "patience_config": {
+    "starting_patience": 80,
+    "warning_threshold": 32,
+    "countdown_turns": 3
+  },
+  "learning_goals": [
+    "Demonstrate situational awareness under time pressure",
+    "Translate accomplishments into operational impact",
+    "Guide the conversation back when it drifts"
+  ]
+}

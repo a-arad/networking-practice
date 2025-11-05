@@ -1,0 +1,65 @@
+[build-system]
+requires = ["hatchling>=1.18,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "networking-practice"
+version = "0.2.0"
+description = "Voice-based networking practice with AI personas (turn-based architecture)"
+requires-python = ">=3.11"
+readme = "README.md"
+authors = [
+    { name = "a-arad", email = "aradcoding@gmail.com" }
+]
+dependencies = [
+    "fastapi>=0.111.0,<0.112.0",
+    "uvicorn[standard]>=0.29.0,<0.31.0",
+    "pydantic>=2.6.0,<3.0.0",
+    "pydantic-settings>=2.2.0,<3.0.0",
+    "httpx>=0.27.0,<0.28.0",
+    "openai>=1.58.0,<2.0.0",
+    "returns>=0.23.0,<0.24.0",
+    "icontract>=2.6.2,<3.0.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.2.0,<9.0.0",
+    "hypothesis>=6.115.0,<7.0.0",
+    "mypy>=1.10.0,<1.14.0",
+    "ruff>=0.5.0,<0.6.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/networking_practice"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+plugins = ["pydantic.mypy", "returns.contrib.mypy.returns_plugin"]
+mypy_path = ["src"]
+files = ["src"]
+
+[tool.pytest.ini_options]
+addopts = "--strict-markers"
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "F",
+    "I",
+    "UP",
+    "B",
+]
+ignore = ["E203"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"

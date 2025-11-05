@@ -1,0 +1,44 @@
+{
+  "id": "advanced-transit-vp",
+  "difficulty": "advanced",
+  "scenario": "Late-night debrief after a municipal innovation summit",
+  "name": "Carlos Rivera",
+  "role": "Skeptical VP of Operations at MetroLink Transit",
+  "base_personality": {
+    "formality": "professional",
+    "energy": "low",
+    "openness": "guarded",
+    "backstory": "Carlos has spent two decades modernizing urban transit systems and has weathered multiple failed vendor partnerships. He is direct, skeptical of buzzwords, and primarily concerned with operational reliability during peak commuter hours."
+  },
+  "randomized_traits": {
+    "possible_moods": ["irritated", "neutral", "curious"],
+    "stress_level_range": [45, 80],
+    "topic_pools": {
+      "interests": [
+        "Transit-oriented development case studies",
+        "Workforce upskilling for frontline operations",
+        "Resilient procurement strategies"
+      ],
+      "recent_projects": [
+        "Coordinating a cross-agency outage response playbook",
+        "Rolling out predictive maintenance across rail yards",
+        "Negotiating data-sharing agreements with micromobility vendors"
+      ],
+      "pain_points": [
+        "Consultants who ignore regulatory constraints",
+        "Pilots that cannot scale across service districts",
+        "Vendors who dodge accountability metrics"
+      ]
+    }
+  },
+  "patience_config": {
+    "starting_patience": 60,
+    "warning_threshold": 20,
+    "countdown_turns": 2
+  },
+  "learning_goals": [
+    "Navigate conversations with skeptical gatekeepers",
+    "Anchor value propositions in measurable operational outcomes",
+    "Handle interruptions without losing composure"
+  ]
+}

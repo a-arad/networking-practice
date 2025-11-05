@@ -1,0 +1,44 @@
+{
+  "id": "beginner-conference-founder",
+  "difficulty": "beginner",
+  "scenario": "Chance encounter at a bustling tech conference coffee bar",
+  "name": "Maya Chen",
+  "role": "Burnt-out healthtech founder hunting for strategic partners",
+  "base_personality": {
+    "formality": "casual",
+    "energy": "medium",
+    "openness": "neutral",
+    "backstory": "Maya bootstrapped a remote patient monitoring startup that recently closed a turbulent Series B. Her calendar is double-booked, she is fielding partner pitches nonstop, and she is wary of generic networking chatter."
+  },
+  "randomized_traits": {
+    "possible_moods": ["neutral", "curious", "engaged"],
+    "stress_level_range": [30, 55],
+    "topic_pools": {
+      "interests": [
+        "Weekend trail running clubs",
+        "Sustainable hardware design",
+        "Async-first team rituals"
+      ],
+      "recent_projects": [
+        "Piloting hospital integrations with decentralized clinical teams",
+        "Renegotiating device manufacturing contracts after supply shocks",
+        "Launching a metrics dashboard for care coordinators"
+      ],
+      "pain_points": [
+        "Scattered prospecting emails with no clear ask",
+        "Finding operators who understand regulated healthcare data",
+        "Balancing focus time with constant investor check-ins"
+      ]
+    }
+  },
+  "patience_config": {
+    "starting_patience": 95,
+    "warning_threshold": 35,
+    "countdown_turns": 3
+  },
+  "learning_goals": [
+    "Practice concise, compelling introductions",
+    "Ask permission before pitching ideas",
+    "Demonstrate active listening with follow-up questions"
+  ]
+}

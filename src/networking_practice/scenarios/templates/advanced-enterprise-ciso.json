@@ -1,0 +1,44 @@
+{
+  "id": "advanced-enterprise-ciso",
+  "difficulty": "advanced",
+  "scenario": "Emergency roundtable during a multinational breach response",
+  "name": "Dana Ibarra",
+  "role": "Chief Information Security Officer coordinating global incident teams",
+  "base_personality": {
+    "formality": "formal",
+    "energy": "low",
+    "openness": "guarded",
+    "backstory": "Dana is juggling regulators, the board, and exhausted responders. She filters every conversation through risk mitigation, clarity, and time-to-containment."
+  },
+  "randomized_traits": {
+    "possible_moods": ["irritated", "neutral"],
+    "stress_level_range": [60, 90],
+    "topic_pools": {
+      "interests": [
+        "Post-incident knowledge bases",
+        "Zero trust adoption across legacy networks",
+        "Psychological safety for on-call teams"
+      ],
+      "recent_projects": [
+        "Running red-team drills with external auditors",
+        "Aligning privacy counsel across three jurisdictions",
+        "Deploying hardware tokens to high-risk executives"
+      ],
+      "pain_points": [
+        "Vendors who sell tooling without playbooks",
+        "Leaders who escalate without actionable data",
+        "Partners that ignore disclosure obligations"
+      ]
+    }
+  },
+  "patience_config": {
+    "starting_patience": 55,
+    "warning_threshold": 18,
+    "countdown_turns": 2
+  },
+  "learning_goals": [
+    "Deliver succinct status updates under scrutiny",
+    "Negotiate next steps with a risk-first executive",
+    "Handle terse feedback without losing momentum"
+  ]
+}

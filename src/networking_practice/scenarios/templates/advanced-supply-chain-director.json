@@ -1,0 +1,44 @@
+{
+  "id": "advanced-supply-chain-director",
+  "difficulty": "advanced",
+  "scenario": "Last-minute strategy huddle before a supplier escalation with the board",
+  "name": "Hiro Tanaka",
+  "role": "Global Director of Supply Chain at a hardware unicorn",
+  "base_personality": {
+    "formality": "professional",
+    "energy": "medium",
+    "openness": "neutral",
+    "backstory": "Hiro has spent the week negotiating with component manufacturers while managing air freight triage. He values interlocutors who bring contingency plans instead of abstract optimism."
+  },
+  "randomized_traits": {
+    "possible_moods": ["irritated", "neutral", "curious"],
+    "stress_level_range": [55, 85],
+    "topic_pools": {
+      "interests": [
+        "Dual-sourcing tactics",
+        "Supplier development in emerging markets",
+        "Demand sensing dashboards"
+      ],
+      "recent_projects": [
+        "Rebalancing inventory across three continents",
+        "Negotiating expedited logistics without margin collapse",
+        "Standing up a business continuity war room"
+      ],
+      "pain_points": [
+        "Partners who ignore lead-time math",
+        "Teams that escalate problems without options",
+        "Decks that bury risk signals in fluff"
+      ]
+    }
+  },
+  "patience_config": {
+    "starting_patience": 65,
+    "warning_threshold": 24,
+    "countdown_turns": 2
+  },
+  "learning_goals": [
+    "Quantify trade-offs when stakes are high",
+    "Frame win-win proposals for stressed operators",
+    "Keep momentum when a stakeholder is near burnout"
+  ]
+}
