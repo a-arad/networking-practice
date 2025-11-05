@@ -3,6 +3,11 @@
 from __future__ import annotations
 
 import io
+import json
+import subprocess
+import time
+from datetime import datetime
+from pathlib import Path
 from typing import BinaryIO
 
 from openai import AsyncOpenAI, OpenAI
@@ -12,6 +17,21 @@ from networking_practice.core.logging import get_logger
 from networking_practice.conversation.models import ParticipantRole
 
 logger = get_logger(__name__)
+
+
+def get_git_commit() -> str:
+    """Get current git commit hash (short form).
+
+    Returns:
+        Short commit hash or 'unknown' if not in a git repo.
+    """
+    try:
+        return subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"],
+            stderr=subprocess.DEVNULL,
+        ).decode().strip()
+    except Exception:
+        return "unknown"
 
 
 class VoiceConversationService:
@@ -97,12 +117,23 @@ class VoiceConversationService:
                 full_messages.append({"role": "system", "content": instructions})
             full_messages.extend(messages)
 
-            completion = self.client.chat.completions.create(
-                model=self.settings.chat_model,
-                messages=full_messages,
-                temperature=self.settings.chat_temperature,
-                max_tokens=self.settings.chat_max_tokens,
-            )
+            # Build completion params (GPT-5 models have different supported params)
+            completion_params = {
+                "model": self.settings.chat_model,
+                "messages": full_messages,
+            }
+
+            # GPT-5 models only support temperature=1 (default)
+            if self.settings.chat_model.startswith("gpt-5"):
+                # Don't set temperature or max_tokens for GPT-5 series
+                pass
+            else:
+                # For older models, include temperature and max_tokens
+                completion_params["temperature"] = self.settings.chat_temperature
+                if self.settings.chat_max_tokens is not None:
+                    completion_params["max_tokens"] = self.settings.chat_max_tokens
+
+            completion = self.client.chat.completions.create(**completion_params)
 
             response_text = completion.choices[0].message.content or ""
 
@@ -232,14 +263,40 @@ class VoiceConversationService:
             Exception: If any step fails.
         """
         # Step 1: Transcribe user audio
+        start = time.perf_counter()
         user_text = self.transcribe_audio(audio_input)
+        transcribe_ms = (time.perf_counter() - start) * 1000
 
         # Step 2: Add to history and generate response
         messages = conversation_history + [{"role": "user", "content": user_text}]
+        start = time.perf_counter()
         assistant_text = self.generate_response(messages, instructions)
+        chat_ms = (time.perf_counter() - start) * 1000
 
         # Step 3: Synthesize speech
+        start = time.perf_counter()
         audio_response = self.synthesize_speech(assistant_text, voice)
+        tts_ms = (time.perf_counter() - start) * 1000
+
+        # Log latency metrics
+        Path("logs").mkdir(exist_ok=True)
+        with open("logs/latency.jsonl", "a") as f:
+            f.write(
+                json.dumps(
+                    {
+                        "timestamp": datetime.now().isoformat(),
+                        "commit": get_git_commit(),
+                        "transcribe_ms": transcribe_ms,
+                        "transcribe_model": self.settings.whisper_model,
+                        "chat_ms": chat_ms,
+                        "chat_model": self.settings.chat_model,
+                        "tts_ms": tts_ms,
+                        "tts_model": self.settings.tts_model,
+                        "total_ms": transcribe_ms + chat_ms + tts_ms,
+                    }
+                )
+                + "\n"
+            )
 
         logger.info(
             "Completed conversation turn",
