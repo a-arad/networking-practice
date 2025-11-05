@@ -110,3 +110,45 @@ export async function submitConversationTurn(
 
   return (await response.json()) as TurnResponsePayload;
 }
+
+export interface VoiceTurnResponse {
+  audioResponse: Blob;
+  userText: string;
+  assistantText: string;
+}
+
+export async function processVoiceTurn(
+  sessionId: string,
+  audioBlob: Blob,
+  options: { signal?: AbortSignal } = {}
+): Promise<VoiceTurnResponse> {
+  const formData = new FormData();
+
+  // Determine file extension based on MIME type
+  const extension = audioBlob.type.includes('webm') ? 'webm'
+    : audioBlob.type.includes('ogg') ? 'ogg'
+    : audioBlob.type.includes('mp4') ? 'mp4'
+    : 'webm';
+
+  formData.append('audio', audioBlob, `recording.${extension}`);
+
+  const response = await fetch(
+    `${env.apiUrl}/api/v1/conversations/${encodeURIComponent(sessionId)}/turns`,
+    {
+      method: "POST",
+      body: formData,
+      signal: options.signal
+    }
+  );
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(`Failed to process voice turn: ${message || response.statusText}`);
+  }
+
+  return {
+    audioResponse: await response.blob(),
+    userText: response.headers.get('X-User-Text') || '',
+    assistantText: response.headers.get('X-Assistant-Text') || '',
+  };
+}

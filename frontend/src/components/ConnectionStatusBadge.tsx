@@ -1,4 +1,4 @@
-import type { RelayStatus } from "../services/realtimeRelayClient";
+import type { RelayStatus } from "../hooks/useRealtimeSession";
 import { clsx } from "clsx";
 
 interface Props {

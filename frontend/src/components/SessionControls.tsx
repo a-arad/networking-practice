@@ -1,5 +1,5 @@
 import { ConnectionStatusBadge } from "./ConnectionStatusBadge";
-import type { RelayStatus } from "../services/realtimeRelayClient";
+import type { RelayStatus } from "../hooks/useRealtimeSession";
 
 interface Props {
   readonly status: RelayStatus;
@@ -38,7 +38,7 @@ export function SessionControls({ status, streaming, onStart, onPause, onResume,
         <div className="controls" style={{ justifyContent: "flex-start" }}>
           <button
             type="button"
-            className="secondary-button"
+            className={streaming ? "danger-button" : "primary-button"}
             onClick={() => {
               if (streaming) {
                 void onPause();
@@ -47,16 +47,16 @@ export function SessionControls({ status, streaming, onStart, onPause, onResume,
               }
             }}
           >
-            {streaming ? "Pause" : "Resume"}
+            {streaming ? "Stop & Send" : "Start Recording"}
           </button>
           <button
             type="button"
-            className="danger-button"
+            className="secondary-button"
             onClick={() => {
               void onStop();
             }}
           >
-            Stop
+            End Session
           </button>
         </div>
       )}

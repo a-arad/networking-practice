@@ -7,6 +7,8 @@ import type {
   TurnAnalysis
 } from "../types/session";
 
+import type { RelayStatus } from "../hooks/useRealtimeSession";
+
 const ConversationTurnOrder = {
   compare(a: string, b: string): number {
     const parse = (value: string): number => {
@@ -17,7 +19,6 @@ const ConversationTurnOrder = {
     return parse(a) - parse(b);
   }
 } as const;
-import type { RelayStatus } from "../services/realtimeRelayClient";
 
 interface SessionState {
   status: RelayStatus;

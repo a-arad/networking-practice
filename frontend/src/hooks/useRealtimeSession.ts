@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef } from "react";
-import { RealtimeRelayClient, type RelayEventHandlers } from "../services/realtimeRelayClient";
+import { VoiceClient } from "../services/voiceClient";
 import { useSessionStore } from "../store/useSessionStore";
 import type {
   CombinedEvaluationResult,
@@ -11,133 +11,205 @@ import type {
 } from "../types/session";
 import {
   startConversationSession,
-  submitCompositeEvaluation
+  submitCompositeEvaluation,
+  processVoiceTurn
 } from "../services/apiClient";
+import { env } from "../lib/env";
+
+export type SessionStatus = "idle" | "connecting" | "connected" | "disconnected" | "error";
+// Alias for backward compatibility
+export type RelayStatus = SessionStatus;
 
 export function useRealtimeSession() {
   const store = useSessionStore();
-  const clientRef = useRef<RealtimeRelayClient | null>(null);
+  const voiceClientRef = useRef<VoiceClient | null>(null);
+  const conversationSessionIdRef = useRef<string | null>(null);
+  const turnCountRef = useRef<number>(0);
 
-  const ensureClient = useCallback((): RealtimeRelayClient => {
-    if (!clientRef.current) {
-      const client = new RealtimeRelayClient();
-      clientRef.current = client;
-      if (typeof window !== "undefined" && import.meta.env.DEV) {
-        (window as unknown as { __relayClient?: RealtimeRelayClient }).__relayClient = client;
-      }
+  const ensureVoiceClient = useCallback((): VoiceClient => {
+    if (!voiceClientRef.current) {
+      voiceClientRef.current = new VoiceClient();
     }
-    return clientRef.current;
+    return voiceClientRef.current;
   }, []);
-
-  const attachHandlers = useCallback(
-    (client: RealtimeRelayClient) => {
-      const handlers: RelayEventHandlers = {
-        onStatusChange: (status) => {
-          store.setStatus(status);
-          if (status !== "connected") {
-            store.setStreaming(false);
-          }
-        },
-        onTurn: (turn) => store.upsertTurn(turn),
-        onBackendTurn: (turnId, response) => {
-          store.recordTurnAnalysis(turnId, {
-            evaluation: response.evaluation,
-            combined_evaluation: response.combined_evaluation,
-            evaluation_failure_reason: response.evaluation_failure_reason,
-            response_source: response.response_source,
-            response_failure_reason: response.response_failure_reason,
-            persona: response.persona,
-            state: response.state
-          });
-        },
-        onError: (error) => store.setError(error.message)
-      };
-      client.setHandlers(handlers);
-    },
-    [store]
-  );
 
   const beginSession = useCallback(async () => {
     if (store.status === "connecting" || store.status === "connected") {
       return;
     }
-    const client = ensureClient();
-    attachHandlers(client);
+
+    ensureVoiceClient();
     store.reset();
     store.setError(null);
     store.setStatus("connecting");
+    turnCountRef.current = 0;
 
     try {
       const session = await startConversationSession();
+      conversationSessionIdRef.current = session.session_id;
+
       store.setConversationSession({
         sessionId: session.session_id,
         persona: session.persona,
         state: session.state
       });
-      client.setConversationSessionId(session.session_id);
-      client.setSessionInstructions(composePersonaInstructions(session.persona, session.state));
+
+      store.setStatus("connected");
     } catch (error) {
       const message =
         error instanceof Error ? error.message : typeof error === "string" ? error : JSON.stringify(error);
       store.setError(message);
       store.setStatus("error");
-      return;
+      throw error;
+    }
+  }, [ensureVoiceClient, store]);
+
+  const startRecording = useCallback(async () => {
+    const client = voiceClientRef.current;
+    if (!client) {
+      throw new Error("Voice client not initialized");
+    }
+
+    if (!conversationSessionIdRef.current) {
+      throw new Error("No active conversation session");
+    }
+
+    if (store.status !== "connected") {
+      throw new Error("Session not connected");
     }
 
     try {
-      await client.connect();
-      await client.startStreaming();
+      await client.startRecording();
       store.setStreaming(true);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : typeof error === "string" ? error : JSON.stringify(error);
       store.setError(message);
-      store.setStatus("error");
-      return;
+      throw error;
     }
-  }, [attachHandlers, ensureClient, store]);
+  }, [store]);
+
+  const stopRecordingAndSend = useCallback(async () => {
+    const client = voiceClientRef.current;
+    const sessionId = conversationSessionIdRef.current;
+
+    if (!client) {
+      throw new Error("Voice client not initialized");
+    }
+
+    if (!sessionId) {
+      throw new Error("No active conversation session");
+    }
+
+    store.setStreaming(false);
+
+    try {
+      // Stop recording and get the audio blob
+      const audioBlob = await client.stopRecording();
+
+      // Temporarily store status for restoration
+      const previousStatus = store.status;
+      store.setStatus("connecting"); // Reusing "connecting" to indicate "processing"
+
+      // Send audio to backend
+      const { audioResponse, userText, assistantText } = await processVoiceTurn(sessionId, audioBlob);
+
+      // Create turn ID
+      turnCountRef.current += 1;
+      const turnId = `turn-${turnCountRef.current}`;
+      const openedAt = new Date().toISOString();
+
+      // Create and add user message to turn
+      const userMessageId = `${turnId}-user`;
+      const assistantMessageId = `${turnId}-assistant`;
+
+      const turn: SessionTurn = {
+        turn_id: turnId,
+        user: {
+          message_id: userMessageId,
+          role: "user" as const,
+          utterance: userText,
+          timestamp: openedAt,
+          sequence: 0,
+          final: true
+        },
+        assistant: [
+          {
+            message_id: assistantMessageId,
+            role: "assistant" as const,
+            utterance: assistantText,
+            timestamp: new Date().toISOString(),
+            sequence: 0,
+            final: true
+          }
+        ],
+        opened_at: openedAt,
+        closed_at: new Date().toISOString()
+      };
+
+      store.upsertTurn(turn);
+
+      // Play the response audio
+      await client.playAudio(audioResponse);
+
+      // Restore status
+      store.setStatus(previousStatus);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : typeof error === "string" ? error : JSON.stringify(error);
+      store.setError(message);
+      store.setStatus("error");
+      throw error;
+    }
+  }, [store]);
 
   const pauseSession = useCallback(async () => {
-    const client = clientRef.current;
-    if (!client) {
-      return;
+    // In HTTP mode, "pause" means stop recording and send
+    // Maps to stopRecordingAndSend for backward compatibility with old UI
+    if (store.streaming) {
+      await stopRecordingAndSend();
     }
-    await client.pauseStreaming();
-    store.setStreaming(false);
-  }, [store]);
+  }, [store.streaming, stopRecordingAndSend]);
 
   const resumeSession = useCallback(async () => {
-    const client = clientRef.current;
-    if (!client) {
-      throw new Error("Client not connected");
+    // In HTTP mode, "resume" means start recording
+    // Maps to startRecording for backward compatibility with old UI
+    if (!store.streaming && store.status === "connected") {
+      await startRecording();
     }
-    await client.startStreaming();
-    store.setStreaming(true);
-  }, [store]);
+  }, [store.streaming, store.status, startRecording]);
 
   const stopSession = useCallback(async () => {
-    const client = clientRef.current;
+    const client = voiceClientRef.current;
     if (!client) {
       return;
     }
-    await client.finalizeTurn({ disconnect: true });
+
+    // Cleanup
+    client.cleanup();
+    conversationSessionIdRef.current = null;
+    turnCountRef.current = 0;
     store.setStreaming(false);
+    store.setStatus("idle");
   }, [store]);
 
   const runCompositeEvaluation = useCallback(async () => {
-    const client = clientRef.current;
-    if (!client) {
-      throw new Error("Client not connected");
-    }
-    const metadata = client.sessionMetadata;
-    if (!metadata) {
-      throw new Error("Missing session metadata");
+    if (!conversationSessionIdRef.current) {
+      throw new Error("No active conversation session");
     }
 
     const turns: ConversationTurn[] = store.turns.map((turn) => mapSessionTurnToConversation(turn));
 
+    if (turns.length === 0) {
+      store.setError("No turns to evaluate");
+      return;
+    }
+
     const transcript: ConversationTranscript = {
-      metadata,
+      metadata: {
+        session_id: conversationSessionIdRef.current,
+        created_at: new Date().toISOString()
+      },
       turns
     };
 
@@ -161,18 +233,29 @@ export function useRealtimeSession() {
   return useMemo(
     () => ({
       status: store.status,
-      streaming: store.streaming,
+      streaming: store.streaming, // In HTTP mode, this means "recording"
       turns: store.turns,
       evaluation: store.evaluation,
       evaluationLoading: store.evaluationLoading,
       error: store.error,
       beginSession,
+      startRecording,
+      stopRecordingAndSend,
       pauseSession,
       resumeSession,
       stopSession,
       runCompositeEvaluation
     }),
-    [beginSession, pauseSession, resumeSession, stopSession, runCompositeEvaluation, store]
+    [
+      beginSession,
+      startRecording,
+      stopRecordingAndSend,
+      pauseSession,
+      resumeSession,
+      stopSession,
+      runCompositeEvaluation,
+      store
+    ]
   );
 }
 
@@ -192,18 +275,4 @@ function mapSessionTurnToConversation(turn: SessionTurn): ConversationTurn {
       timestamp: message.timestamp
     }))
   };
-}
-
-function composePersonaInstructions(persona: PersonaSummary, state: CharacterSessionState): string {
-  const moodLabel = state.current_mood.replace(/_/g, " ");
-  const traits = `${persona.energy} energy, ${persona.formality} tone, ${persona.openness} openness`;
-  const topicFocus = `Interests: ${persona.topic_focus.interest}. Recent project: ${persona.topic_focus.recent_project}. Pain point: ${persona.topic_focus.pain_point}.`;
-  return [
-    `You are ${persona.name}, ${persona.role}. Setting: ${persona.scenario}.`,
-    `Your personality: ${traits}. Current stress level ${state.stress_level}/100 and mood ${moodLabel}.`,
-    `${topicFocus}`,
-    `${persona.backstory}`,
-    "Engage naturally in conversation while staying in character.",
-    "Keep responses brief and conversational, matching the personality traits above."
-  ].join(" ");
 }
