@@ -84,10 +84,14 @@ export class VoiceClient {
       throw new Error(`Failed to process audio: ${response.statusText} - ${errorText}`);
     }
 
+    // Decode URL-encoded header values
+    const userTextEncoded = response.headers.get('X-User-Text') || '';
+    const assistantTextEncoded = response.headers.get('X-Assistant-Text') || '';
+
     return {
       audioResponse: await response.blob(),
-      userText: response.headers.get('X-User-Text') || '',
-      assistantText: response.headers.get('X-Assistant-Text') || '',
+      userText: userTextEncoded ? decodeURIComponent(userTextEncoded) : '',
+      assistantText: assistantTextEncoded ? decodeURIComponent(assistantTextEncoded) : '',
     };
   }
 

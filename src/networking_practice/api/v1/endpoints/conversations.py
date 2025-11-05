@@ -5,6 +5,7 @@ from __future__ import annotations
 import random
 import uuid
 from typing import Annotated
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import Response
@@ -222,13 +223,17 @@ async def process_voice_turn(
         session.add_message(ParticipantRole.USER, user_text)
         session.add_message(ParticipantRole.ASSISTANT, assistant_text)
 
+        # URL-encode text for safe HTTP headers
+        user_text_encoded = quote(user_text, safe='')
+        assistant_text_encoded = quote(assistant_text, safe='')
+
         # Return audio response
         return Response(
             content=audio_response,
             media_type="audio/mpeg",
             headers={
-                "X-User-Text": user_text,  # Include transcript in headers for debugging
-                "X-Assistant-Text": assistant_text,
+                "X-User-Text": user_text_encoded,
+                "X-Assistant-Text": assistant_text_encoded,
             },
         )
 
