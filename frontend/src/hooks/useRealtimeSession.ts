@@ -7,7 +7,8 @@ import type {
   ConversationTurn,
   SessionTurn,
   PersonaSummary,
-  CharacterSessionState
+  CharacterSessionState,
+  TurnAnalysis
 } from "../types/session";
 import {
   startConversationSession,
@@ -112,7 +113,7 @@ export function useRealtimeSession() {
       store.setStatus("connecting"); // Reusing "connecting" to indicate "processing"
 
       // Send audio to backend
-      const { audioResponse, userText, assistantText } = await processVoiceTurn(sessionId, audioBlob);
+      const { audioResponse, payload } = await processVoiceTurn(sessionId, audioBlob);
 
       // Create turn ID
       turnCountRef.current += 1;
@@ -123,12 +124,23 @@ export function useRealtimeSession() {
       const userMessageId = `${turnId}-user`;
       const assistantMessageId = `${turnId}-assistant`;
 
+      // Build TurnAnalysis from the response payload
+      const analysis: TurnAnalysis = {
+        evaluation: payload.evaluation,
+        combined_evaluation: null,
+        evaluation_failure_reason: null,
+        response_source: "llm" as const,
+        response_failure_reason: null,
+        persona: payload.persona,
+        state: payload.state
+      };
+
       const turn: SessionTurn = {
         turn_id: turnId,
         user: {
           message_id: userMessageId,
           role: "user" as const,
-          utterance: userText,
+          utterance: payload.user_text,
           timestamp: openedAt,
           sequence: 0,
           final: true
@@ -137,17 +149,21 @@ export function useRealtimeSession() {
           {
             message_id: assistantMessageId,
             role: "assistant" as const,
-            utterance: assistantText,
+            utterance: payload.assistant_text,
             timestamp: new Date().toISOString(),
             sequence: 0,
             final: true
           }
         ],
         opened_at: openedAt,
-        closed_at: new Date().toISOString()
+        closed_at: new Date().toISOString(),
+        analysis
       };
 
       store.upsertTurn(turn);
+
+      // Update character state with turn analysis
+      store.recordTurnAnalysis(turnId, analysis);
 
       // Play the response audio
       await client.playAudio(audioResponse);

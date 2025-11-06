@@ -166,12 +166,10 @@ export interface SessionStartResponse {
 
 export interface TurnResponsePayload {
   readonly session_id: string;
-  readonly assistant_message: TurnMessage;
+  readonly user_text: string;
+  readonly assistant_text: string;
+  readonly audio_url: string; // Base64 data URL: "data:audio/mpeg;base64,..."
   readonly state: CharacterSessionState;
   readonly persona: PersonaSummary;
   readonly evaluation: TurnEvaluationView;
-  readonly combined_evaluation: CombinedEvaluationResult | null;
-  readonly evaluation_failure_reason: string | null;
-  readonly response_source: AssistantResponseSource;
-  readonly response_failure_reason: string | null;
 }

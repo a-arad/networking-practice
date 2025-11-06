@@ -113,8 +113,7 @@ export async function submitConversationTurn(
 
 export interface VoiceTurnResponse {
   audioResponse: Blob;
-  userText: string;
-  assistantText: string;
+  payload: TurnResponsePayload;
 }
 
 export async function processVoiceTurn(
@@ -146,13 +145,26 @@ export async function processVoiceTurn(
     throw new Error(`Failed to process voice turn: ${message || response.statusText}`);
   }
 
-  // Decode URL-encoded header values
-  const userTextEncoded = response.headers.get('X-User-Text') || '';
-  const assistantTextEncoded = response.headers.get('X-Assistant-Text') || '';
+  // Parse JSON response
+  const payload = (await response.json()) as TurnResponsePayload;
+
+  // Extract audio from base64 data URL
+  // Format: "data:audio/mpeg;base64,<base64-data>"
+  const base64Match = payload.audio_url.match(/^data:audio\/[^;]+;base64,(.+)$/);
+  if (!base64Match || !base64Match[1]) {
+    throw new Error('Invalid audio_url format in response');
+  }
+
+  const base64Data = base64Match[1];
+  const binaryString = atob(base64Data);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  const audioResponse = new Blob([bytes], { type: 'audio/mpeg' });
 
   return {
-    audioResponse: await response.blob(),
-    userText: userTextEncoded ? decodeURIComponent(userTextEncoded) : '',
-    assistantText: assistantTextEncoded ? decodeURIComponent(assistantTextEncoded) : '',
+    audioResponse,
+    payload
   };
 }

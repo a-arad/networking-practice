@@ -8,15 +8,24 @@ from typing import Annotated
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
-from networking_practice.conversation.models import ParticipantRole
+from networking_practice.conversation.models import (
+    ConversationMetadata,
+    ConversationTranscript,
+    ConversationTurn,
+    ParticipantRole,
+    TurnMessage,
+)
 from networking_practice.conversation.session_manager import get_session_manager
 from networking_practice.conversation.voice_service import VoiceConversationService
 from networking_practice.core.config import Settings, get_settings
+from networking_practice.evaluation.models import EvaluationRequest
+from networking_practice.evaluation.service import EvaluationService
 from networking_practice.scenarios import CharacterTemplate, instantiate_persona
 from networking_practice.scenarios.loader import load_default_templates
+from networking_practice.scenarios.models import CharacterMood
 from networking_practice.scenarios.prompt import format_conversation_prompt
 from networking_practice.scenarios.runtime import CharacterPersonaInstance
 
@@ -59,6 +68,39 @@ class CharacterStateSummary(BaseModel):
     current_patience: int
     patience_config: PatienceConfig
     warning_turns_remaining: int | None = None
+
+
+class DimensionScoreView(BaseModel):
+    """Dimension score for frontend."""
+
+    dimension: str
+    score: float
+    rationale: str
+
+
+class TurnEvaluationView(BaseModel):
+    """Evaluation result for a single turn."""
+
+    dimension_scores: list[DimensionScoreView]
+    patience_delta: int
+    average_score: float
+    previous_mood: str
+    new_mood: str
+    entered_warning: bool
+    exited_warning: bool
+    conversation_ended: bool
+
+
+class TurnResponsePayload(BaseModel):
+    """Full response payload for a conversation turn."""
+
+    session_id: str
+    user_text: str
+    assistant_text: str
+    audio_url: str  # Base64 encoded audio
+    state: CharacterStateSummary
+    persona: PersonaSummary
+    evaluation: TurnEvaluationView
 
 
 class SessionStartResponse(BaseModel):
@@ -177,8 +219,8 @@ async def process_voice_turn(
     session_id: str,
     audio: Annotated[UploadFile, File(description="Audio file (WebM, MP3, WAV, etc.)")],
     settings: Annotated[Settings, Depends(get_settings)],
-) -> Response:
-    """Process a voice conversation turn (STT → Chat → TTS).
+) -> TurnResponsePayload:
+    """Process a voice conversation turn (STT → Chat → TTS) with evaluation.
 
     Args:
         session_id: Session identifier.
@@ -186,7 +228,7 @@ async def process_voice_turn(
         settings: Application settings.
 
     Returns:
-        Audio response (MP3 format).
+        Full turn response with state updates and evaluation.
 
     Raises:
         HTTPException: If session not found or processing fails.
@@ -211,7 +253,7 @@ async def process_voice_turn(
         # Format system instructions with persona
         instructions = format_conversation_prompt(session.persona)
 
-        # Process turn
+        # Process turn (STT → Chat → TTS)
         user_text, assistant_text, audio_response = voice_service.process_turn(
             audio_input=audio_data,
             conversation_history=history,
@@ -220,21 +262,112 @@ async def process_voice_turn(
         )
 
         # Add messages to session
-        session.add_message(ParticipantRole.USER, user_text)
-        session.add_message(ParticipantRole.ASSISTANT, assistant_text)
+        user_msg = session.add_message(ParticipantRole.USER, user_text)
+        assistant_msg = session.add_message(ParticipantRole.ASSISTANT, assistant_text)
 
-        # URL-encode text for safe HTTP headers
-        user_text_encoded = quote(user_text, safe='')
-        assistant_text_encoded = quote(assistant_text, safe='')
+        # Build transcript for evaluation (just this turn)
+        turn = ConversationTurn(
+            turn_id=f"turn_{uuid.uuid4().hex[:8]}",
+            user=user_msg,
+            assistant=(assistant_msg,),
+        )
+        transcript = ConversationTranscript(
+            metadata=ConversationMetadata(session_id=session_id),
+            turns=(turn,),
+        )
 
-        # Return audio response
-        return Response(
-            content=audio_response,
-            media_type="audio/mpeg",
-            headers={
-                "X-User-Text": user_text_encoded,
-                "X-Assistant-Text": assistant_text_encoded,
-            },
+        # Evaluate the turn
+        evaluation_service = EvaluationService()
+        eval_result = evaluation_service.evaluate(
+            EvaluationRequest(transcript=transcript, focus_role=ParticipantRole.USER)
+        )
+
+        # Calculate state changes based on evaluation
+        previous_mood = session.current_mood
+        previous_patience = session.current_patience
+        was_in_warning = session.warning_turns_remaining is not None
+
+        from returns.result import Success
+
+        if isinstance(eval_result, Success):
+            evaluation = eval_result.unwrap()
+            avg_score = evaluation.overall_score
+
+            # Calculate patience delta (poor performance costs patience)
+            # Score of 1.0 = no change, 0.0 = -15 patience
+            patience_delta = int(-15 * (1.0 - avg_score))
+            session.decay_patience(abs(patience_delta))
+
+            # Update mood based on average score
+            if avg_score >= 0.8:
+                session.current_mood = CharacterMood.ENGAGED
+            elif avg_score >= 0.6:
+                session.current_mood = CharacterMood.CURIOUS
+            elif avg_score >= 0.4:
+                session.current_mood = CharacterMood.NEUTRAL
+            else:
+                session.current_mood = CharacterMood.IRRITATED
+
+            # Build evaluation view
+            dimension_scores = [
+                DimensionScoreView(
+                    dimension=dim.dimension.value,
+                    score=dim.score,
+                    rationale=dim.rationale,
+                )
+                for dim in evaluation.dimensions
+            ]
+
+            eval_view = TurnEvaluationView(
+                dimension_scores=dimension_scores,
+                patience_delta=patience_delta,
+                average_score=avg_score,
+                previous_mood=previous_mood.value,
+                new_mood=session.current_mood.value,
+                entered_warning=not was_in_warning
+                and session.warning_turns_remaining is not None,
+                exited_warning=False,
+                conversation_ended=session.current_patience <= 0,
+            )
+        else:
+            # Evaluation failed - return neutral defaults
+            eval_view = TurnEvaluationView(
+                dimension_scores=[],
+                patience_delta=0,
+                average_score=0.5,
+                previous_mood=previous_mood.value,
+                new_mood=session.current_mood.value,
+                entered_warning=False,
+                exited_warning=False,
+                conversation_ended=False,
+            )
+
+        # Build state summary
+        state = CharacterStateSummary(
+            stress_level=session.stress_level,
+            current_mood=session.current_mood.value,
+            current_patience=session.current_patience,
+            patience_config=PatienceConfig(
+                starting_patience=session.persona.template.patience_config.starting_patience,
+                warning_threshold=session.persona.template.patience_config.warning_threshold,
+            ),
+            warning_turns_remaining=session.warning_turns_remaining,
+        )
+
+        # Encode audio as base64
+        import base64
+
+        audio_b64 = base64.b64encode(audio_response).decode("utf-8")
+
+        # Return full response
+        return TurnResponsePayload(
+            session_id=session_id,
+            user_text=user_text,
+            assistant_text=assistant_text,
+            audio_url=f"data:audio/mpeg;base64,{audio_b64}",
+            state=state,
+            persona=_build_persona_summary(session.persona),
+            evaluation=eval_view,
         )
 
     except Exception as error:

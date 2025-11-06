@@ -21,9 +21,9 @@ export function VoiceControl({ status, streaming, onStart, onPause, onResume, on
           type="button"
           className="control-button primary"
           onClick={() => void onStart()}
-          disabled={status === "connecting"}
+          disabled={false}
         >
-          {status === "connecting" ? "Starting..." : "Start Session"}
+          Start Session
         </button>
       </div>
     );
