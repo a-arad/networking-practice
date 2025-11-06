@@ -1,7 +1,6 @@
 export class VoiceClient {
   private mediaRecorder: MediaRecorder | null = null;
   private audioChunks: Blob[] = [];
-  private audioContext: AudioContext | null = null;
   private currentAudio: HTMLAudioElement | null = null;
 
   async startRecording(): Promise<void> {
@@ -143,11 +142,6 @@ export class VoiceClient {
         this.mediaRecorder.stream.getTracks().forEach(track => track.stop());
       }
       this.mediaRecorder = null;
-    }
-
-    if (this.audioContext) {
-      this.audioContext.close();
-      this.audioContext = null;
     }
 
     this.audioChunks = [];
