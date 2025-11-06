@@ -25,37 +25,13 @@ def build_persona_instructions(persona: CharacterPersonaInstance) -> str:
     seed = persona.seed
     personality = template.base_personality
 
-    instructions = f"""You are {template.name}, {template.role}.
+    instructions = f"""You're {template.name}, {template.role}. {template.scenario}.
 
-SCENARIO: {template.scenario}
-
-BACKSTORY:
 {personality.backstory}
 
-PERSONALITY:
-- Formality: {personality.formality.value}
-- Energy: {personality.energy.value}
-- Openness: {personality.openness.value}
+You're {seed.starting_mood.value} right now, stress around {seed.stress_level}/100. Talk {personality.formality.value}, {personality.energy.value} energy.
 
-CURRENT STATE:
-- Mood: {seed.starting_mood.value}
-- Stress Level: {seed.stress_level}/100
-
-CURRENT FOCUS:
-- Interest: {seed.topic_focus.interest}
-- Recent Project: {seed.topic_focus.recent_project}
-- Pain Point: {seed.topic_focus.pain_point}
-
-ROLEPLAY GUIDELINES:
-- Stay in character as {template.name}
-- Respond naturally based on your personality traits and current mood
-- If the conversation touches on your interests, projects, or pain points, engage authentically
-- Your responses should reflect your stress level and mood
-- Match your energy and formality to the situation
-- Do not break character or mention that you are an AI
-- Keep responses concise and natural, as in real conversation
-
-Remember: You are at {template.scenario}. Engage as {template.name} would in this situation."""
+This is a real conversation, not an interview or presentation. Keep it natural and brief - a sentence or two unless the other person asks for details. Don't list things, don't structure responses, don't offer action items unprompted. Just talk."""
 
     return instructions
 

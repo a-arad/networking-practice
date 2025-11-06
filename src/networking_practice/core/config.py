@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     """Typed application configuration with runtime validation."""
 
     openai_api_key: str = Field(..., min_length=10, alias="OPENAI_API_KEY")
+    anthropic_api_key: str | None = Field(default=None, alias="ANTHROPIC_API_KEY")
     environment: Literal["development", "staging", "production"] = Field(
         default="development", alias="ENVIRONMENT"
     )
@@ -36,6 +37,9 @@ class Settings(BaseSettings):
     # Chat completion parameters
     chat_temperature: float = Field(default=0.8, alias="CHAT_TEMPERATURE")
     chat_max_tokens: int | None = Field(default=None, alias="CHAT_MAX_TOKENS")
+    chat_verbosity: Literal["low", "medium", "high"] = Field(
+        default="low", alias="CHAT_VERBOSITY"
+    )
 
     # Evaluation
     evaluation_model: str = Field(default="gpt-4o-mini", alias="EVALUATION_MODEL")

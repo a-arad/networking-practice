@@ -20,24 +20,37 @@ export function App() {
   const persona = useSessionStore((state) => state.persona);
   const characterState = useSessionStore((state) => state.characterState);
 
+  // Determine stress vignette class
+  const stressPercentage = characterState?.stress_level || 0;
+  const vignetteClass = stressPercentage >= 90
+    ? 'stress-critical'
+    : stressPercentage >= 75
+    ? 'stress-high'
+    : '';
+
   return (
-    <main className="app-shell">
-      {error && (
-        <div className="error-banner">{error}</div>
-      )}
+    <>
+      {/* Stress Vignette Overlay */}
+      {vignetteClass && <div className={`stress-vignette ${vignetteClass}`} />}
 
-      <CharacterCard persona={persona} state={characterState} />
+      <main className="app-shell">
+        {error && (
+          <div className="error-banner">{error}</div>
+        )}
 
-      <VoiceControl
-        status={status}
-        streaming={streaming}
-        onStart={beginSession}
-        onPause={pauseSession}
-        onResume={resumeSession}
-        onStop={stopSession}
-      />
+        <CharacterCard persona={persona} state={characterState} />
 
-      <TranscriptPanel turns={turns} />
-    </main>
+        <VoiceControl
+          status={status}
+          streaming={streaming}
+          onStart={beginSession}
+          onPause={pauseSession}
+          onResume={resumeSession}
+          onStop={stopSession}
+        />
+
+        <TranscriptPanel turns={turns} />
+      </main>
+    </>
   );
 }

@@ -10,6 +10,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import BinaryIO
 
+import anthropic
 from openai import AsyncOpenAI, OpenAI
 
 from networking_practice.core.config import Settings
@@ -38,7 +39,7 @@ class VoiceConversationService:
     """Turn-based voice conversation service (Whisper → Chat → TTS)."""
 
     def __init__(self, settings: Settings):
-        """Initialize voice service with OpenAI clients.
+        """Initialize voice service with OpenAI and Anthropic clients.
 
         Args:
             settings: Application settings with API keys and model config.
@@ -46,6 +47,11 @@ class VoiceConversationService:
         self.settings = settings
         self.client = OpenAI(api_key=settings.openai_api_key)
         self.async_client = AsyncOpenAI(api_key=settings.openai_api_key)
+        self.anthropic_client = (
+            anthropic.Anthropic(api_key=settings.anthropic_api_key)
+            if settings.anthropic_api_key
+            else None
+        )
 
     def transcribe_audio(self, audio_data: bytes | BinaryIO) -> str:
         """Transcribe audio to text using Whisper.
@@ -98,7 +104,7 @@ class VoiceConversationService:
         messages: list[dict[str, str]],
         instructions: str | None = None,
     ) -> str:
-        """Generate response using Chat Completions API.
+        """Generate response using Chat Completions API (OpenAI or Anthropic).
 
         Args:
             messages: Conversation history in OpenAI format.
@@ -111,6 +117,13 @@ class VoiceConversationService:
             Exception: If generation fails.
         """
         try:
+            # Check if using Claude
+            if self.settings.chat_model.startswith("claude"):
+                if not self.anthropic_client:
+                    raise ValueError("Anthropic API key not configured for Claude model")
+                return self._generate_claude_response(messages, instructions)
+
+            # OpenAI path
             # Build messages list with optional system message
             full_messages = []
             if instructions:
@@ -123,9 +136,9 @@ class VoiceConversationService:
                 "messages": full_messages,
             }
 
-            # GPT-5 models only support temperature=1 (default)
+            # GPT-5 models support max_completion_tokens but not temperature
             if self.settings.chat_model.startswith("gpt-5"):
-                # Don't set temperature or max_tokens for GPT-5 series
+                # Don't set max_completion_tokens - reasoning tokens consume the budget
                 pass
             else:
                 # For older models, include temperature and max_tokens
@@ -137,12 +150,22 @@ class VoiceConversationService:
 
             response_text = completion.choices[0].message.content or ""
 
+            # Ensure response is not empty (fallback for edge cases)
+            if not response_text or not response_text.strip():
+                logger.warning(
+                    f"Empty response from chat model! finish_reason={completion.choices[0].finish_reason}, "
+                    f"params={completion_params}"
+                )
+                response_text = "..."  # Minimal fallback to prevent TTS error
+
             logger.info(
                 "Generated chat response",
                 extra={
                     "model": self.settings.chat_model,
+                    "response_text": response_text[:100],  # First 100 chars
                     "response_length": len(response_text),
                     "usage": completion.usage.model_dump() if completion.usage else None,
+                    "finish_reason": completion.choices[0].finish_reason,
                 },
             )
 
@@ -154,6 +177,57 @@ class VoiceConversationService:
                 extra={"error": str(error)},
             )
             raise
+
+    def _generate_claude_response(
+        self,
+        messages: list[dict[str, str]],
+        instructions: str | None = None,
+    ) -> str:
+        """Generate response using Anthropic Claude API.
+
+        Args:
+            messages: Conversation history in OpenAI format.
+            instructions: System instructions for the conversation.
+
+        Returns:
+            Generated response text.
+        """
+        # Convert OpenAI format to Anthropic format
+        anthropic_messages = []
+        for msg in messages:
+            if msg["role"] != "system":  # Claude uses separate system param
+                anthropic_messages.append({"role": msg["role"], "content": msg["content"]})
+
+        # Build request params
+        request_params = {
+            "model": self.settings.chat_model,
+            "max_tokens": 1024,  # Claude requires max_tokens, reasonable default
+            "messages": anthropic_messages,
+        }
+
+        if instructions:
+            request_params["system"] = instructions
+
+        # Call Claude API
+        response = self.anthropic_client.messages.create(**request_params)
+
+        response_text = response.content[0].text if response.content else ""
+
+        logger.info(
+            "Generated chat response",
+            extra={
+                "model": self.settings.chat_model,
+                "response_text": response_text[:100],
+                "response_length": len(response_text),
+                "usage": {
+                    "input_tokens": response.usage.input_tokens,
+                    "output_tokens": response.usage.output_tokens,
+                },
+                "stop_reason": response.stop_reason,
+            },
+        )
+
+        return response_text
 
     async def generate_response_stream(
         self,

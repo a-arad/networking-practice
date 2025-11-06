@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import type { CharacterSessionState, PersonaSummary } from "../types/session";
 
 interface CharacterCardProps {
@@ -20,6 +21,21 @@ const moodLabels: Record<string, string> = {
 };
 
 export function CharacterCard({ persona, state }: CharacterCardProps) {
+  const [moodTransition, setMoodTransition] = useState(false);
+  const prevMoodRef = useRef<string | null>(null);
+
+  // Trigger mood animation on change
+  useEffect(() => {
+    if (state && prevMoodRef.current && prevMoodRef.current !== state.current_mood) {
+      setMoodTransition(true);
+      const timer = setTimeout(() => setMoodTransition(false), 150);
+      return () => clearTimeout(timer);
+    }
+    if (state) {
+      prevMoodRef.current = state.current_mood;
+    }
+  }, [state?.current_mood]);
+
   if (!persona || !state) {
     return (
       <div className="character-card-container">
@@ -32,7 +48,18 @@ export function CharacterCard({ persona, state }: CharacterCardProps) {
 
   const patiencePercentage = (state.current_patience / state.patience_config.starting_patience) * 100;
   const isWarning = state.is_in_warning_state;
+  const isCritical = patiencePercentage <= 15;
   const stressPercentage = state.stress_level;
+
+  // Determine stress intensity class
+  const getStressClass = (stress: number) => {
+    if (stress >= 90) return 'stress-critical';
+    if (stress >= 75) return 'stress-high';
+    if (stress >= 50) return 'stress-medium';
+    return 'stress-low';
+  };
+
+  const stressClass = getStressClass(stressPercentage);
 
   return (
     <div className="character-card-container">
@@ -57,7 +84,7 @@ export function CharacterCard({ persona, state }: CharacterCardProps) {
             </div>
             <div className="stat-bar">
               <div
-                className={`stat-bar-fill patience ${isWarning ? 'warning' : ''}`}
+                className={`stat-bar-fill patience ${isCritical ? 'critical' : isWarning ? 'warning' : ''}`}
                 style={{ width: `${Math.max(0, Math.min(100, patiencePercentage))}%` }}
               />
             </div>
@@ -72,7 +99,9 @@ export function CharacterCard({ persona, state }: CharacterCardProps) {
           <div className="stat-item">
             <div className="stat-header">
               <span className="stat-label">Mood</span>
-              <span className="mood-icon-display">{moodEmoji[state.current_mood] || "😐"}</span>
+              <span className={`mood-icon-display ${moodTransition ? 'mood-transition' : ''}`}>
+                {moodEmoji[state.current_mood] || "😐"}
+              </span>
             </div>
             <p style={{ fontSize: '1rem', color: 'var(--text-primary)', margin: '0', fontWeight: 600 }}>
               {moodLabels[state.current_mood] || state.current_mood}
@@ -87,8 +116,15 @@ export function CharacterCard({ persona, state }: CharacterCardProps) {
             </div>
             <div className="stat-bar">
               <div
-                className="stat-bar-fill mood"
-                style={{ width: `${stressPercentage}%` }}
+                className={`stat-bar-fill ${stressClass}`}
+                style={{
+                  width: `${stressPercentage}%`,
+                  background: stressPercentage >= 75
+                    ? 'linear-gradient(90deg, var(--accent-blue), var(--accent-purple), var(--accent-red))'
+                    : stressPercentage >= 50
+                    ? 'linear-gradient(90deg, var(--accent-green), var(--accent-yellow))'
+                    : 'linear-gradient(90deg, var(--accent-green), var(--accent-blue))'
+                }}
               />
             </div>
           </div>
