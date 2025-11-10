@@ -50,3 +50,9 @@ coverage.xml
 # uv
 .uv-cache/
 uv.lock
+
+# Logs
+logs/
+
+# Vite
+frontend/node_modules/.vite/
