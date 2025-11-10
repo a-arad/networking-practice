@@ -4,15 +4,18 @@ Voice-based conversation practice with AI personas using turn-based architecture
 
 ## Architecture
 
+**Conversation Pipeline (per turn):**
 ```
-Audio → Whisper (STT) → Claude Haiku → TTS → Audio Response
+User Audio → Whisper STT → Claude Haiku → TTS → Audio Response
+                                ↓
+                         GPT-4o-mini Evaluation
+                         (patience, mood, scores)
 ```
 
 **Turn-based vs Realtime API:**
 - Cost: ~$0.15/min vs $0.22-0.50/min
 - Latency: 500ms (acceptable for practice scenarios)
 - Simpler debugging, flexible TTS providers, no framework dependencies
-- Turn-by-turn evaluation uses GPT-4o-mini
 
 ## Stack
 
