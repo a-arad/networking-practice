@@ -1,4 +1,4 @@
-# Networking Practice v2
+# Conversation Practice
 
 Voice-based conversation practice with AI personas using turn-based architecture (Whisper STT + Chat Completions + TTS).
 
@@ -12,11 +12,6 @@ User Audio → Whisper STT → Claude Haiku → TTS → Audio Response
                          (patience, mood, scores)
 ```
 
-**Turn-based vs Realtime API:**
-- Cost: ~$0.15/min vs $0.22-0.50/min
-- Latency: 500ms (acceptable for practice scenarios)
-- Simpler debugging, flexible TTS providers, no framework dependencies
-
 ## Stack
 
 **Backend:** Python 3.11+, FastAPI, OpenAI/Anthropic APIs, uv package manager
@@ -25,17 +20,13 @@ User Audio → Whisper STT → Claude Haiku → TTS → Audio Response
 ## Setup
 
 ```bash
-# Install dependencies
+# dependencies
 uv sync --dev
-
-# Configure environment
+# environment
 cp .env.example .env
-# Add OPENAI_API_KEY and ANTHROPIC_API_KEY to .env
-
-# Run backend
+# launch backend
 uv run uvicorn networking_practice.app:app --reload
-
-# Run frontend (separate terminal)
+# launch frontend
 cd frontend && npm run dev
 ```
 
@@ -75,14 +66,12 @@ Returns: {overall_score, dimensions: [{dimension, score, rationale}]}
 ## Development
 
 ```bash
-# Type checking
+# type checking
 uv run mypy --strict src/
-
-# Formatting
+# formatting
 uv run ruff format src/
 uv run ruff check src/ --fix
-
-# Testing
+# testing
 uv run pytest
 ```
 
