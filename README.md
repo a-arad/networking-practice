@@ -15,6 +15,7 @@ User Audio → Whisper STT → Claude Haiku → TTS → Audio Response
 ## Stack
 
 **Backend:** Python 3.11+, FastAPI, OpenAI/Anthropic APIs, uv package manager
+
 **Frontend:** React 18, TypeScript, Vite, Zustand
 
 ## Setup
@@ -31,6 +32,7 @@ cd frontend && npm run dev
 ```
 
 API: `http://localhost:8000`
+
 Frontend: `http://localhost:5173`
 
 ## API Endpoints
